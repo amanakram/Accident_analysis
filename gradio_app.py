@@ -6,6 +6,8 @@ import requests
 import pandas as pd
 import json
 from io import StringIO
+import os
+
 API_URL="https://api.data.gov.in/resource/2297dfd8-2ba7-49a6-b53f-8796568d4753?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=csv"
 API_KEY="579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
 response = requests.get(API_URL, params={ "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b": API_KEY})
