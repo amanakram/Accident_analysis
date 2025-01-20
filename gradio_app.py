@@ -110,4 +110,6 @@ with gr.Blocks(title="Accident Analysis App") as app:
     file_input.change(main_interface, inputs=file_input, outputs=insights_output)
     analysis_selector.change(analysis, inputs=[file_input, analysis_selector], outputs=analysis_output)
 
-app.launch()
+#app.launch()
+app.launch(server_name="0.0.0.0", server_port=8080)
+
