@@ -2,10 +2,38 @@ import gradio as gr
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
+import pandas as pd
+import json
+from io import StringIO
+API_URL="https://api.data.gov.in/resource/2297dfd8-2ba7-49a6-b53f-8796568d4753?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=csv"
+API_KEY="579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
+response = requests.get(API_URL, params={ "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b": API_KEY})
+
+
 
 # Load data
-def load_data(file):
-    data = pd.read_csv(file)
+def load_data():
+    api_url = "https://api.data.gov.in/resource/2297dfd8-2ba7-49a6-b53f-8796568d4753?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=csv"
+    try:
+        # Fetch the data from the API
+        response = requests.get(api_url)
+        
+        # Check the status of the response
+        if response.status_code == 200:
+            print("Data fetched successfully!")
+            
+            # Print a preview of the raw CSV text
+            print("Raw Data Preview:")
+            print(response.text[:500])  # Display the first 500 characters of the response
+            
+            # Load the data into a pandas DataFrame
+            data = pd.read_csv(StringIO(response.text))
+        else:
+            print(f"Failed to fetch data. HTTP Status Code: {response.status_code}")
+    except Exception as e:
+        gr.Markdownint("Oops, Error reading the data, please try after sometime...")
+    #data = pd.read_csv(file)
     highlights = {
         "Total States/UTs": data['States/UTs'].nunique(),
         "Total Records": len(data),
@@ -64,8 +92,8 @@ def plot_correlation(data):
     return fig
 
 # Combine the analysis options
-def analysis(file, analysis_type):
-    data, highlights = load_data(file)
+def analysis( analysis_type):
+    data, highlights = load_data()
     
     if analysis_type == "Total Accidents per Year":
         return plot_total_accidents(data)
@@ -75,8 +103,8 @@ def analysis(file, analysis_type):
         return plot_correlation(data)
 
 # Main interface for displaying highlights
-def main_interface(file):
-    data, highlights = load_data(file)
+def main_interface():
+    data, highlights = load_data()
 
     # Simple key insights with no background color
     insights = f"""
@@ -94,10 +122,13 @@ def main_interface(file):
 # Launch Gradio app
 with gr.Blocks(title="Accident Analysis App") as app:
     gr.Markdown("## 🚗 Welcome to the Accident Analysis App 🚦")
-    gr.Markdown("Upload your CSV file to explore the data interactively.")
-    
+    #gr.Markdown("Upload your CSV file to explore the data interactively.")
+    if response.status_code == 200:
+        gr.Markdown("Data is successfully fetched from API")
     # File input and interactive analysis
-    file_input = gr.File(label="Upload CSV File")
+    
+
+    #file_input = gr.File(label="Upload CSV File")
     insights_output = gr.HTML()  # Display key insights
     analysis_selector = gr.Radio(
         label="Choose Analysis Type:",
@@ -107,9 +138,9 @@ with gr.Blocks(title="Accident Analysis App") as app:
     analysis_output = gr.Plot()
     
     # Bind actions
-    file_input.change(main_interface, inputs=file_input, outputs=insights_output)
-    analysis_selector.change(analysis, inputs=[file_input, analysis_selector], outputs=analysis_output)
+    # file_input.change(main_interface, inputs=file_input, outputs=insights_output)
+    analysis_selector.change(analysis, inputs=[analysis_selector], outputs=analysis_output)
 
-#app.launch()
-app.launch(server_name="0.0.0.0", server_port=8080)
+app.launch()
+# app.launch(server_name="0.0.0.0", server_port=8080)
 
