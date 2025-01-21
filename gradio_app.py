@@ -14,36 +14,23 @@ response = requests.get(API_URL, params={ "579b464db66ec23bdd000001cdd3946e44ce4
 
 
 
-# Load data
 def load_data():
-    api_url = "https://api.data.gov.in/resource/2297dfd8-2ba7-49a6-b53f-8796568d4753?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=csv"
     try:
-        # Fetch the data from the API
-        response = requests.get(api_url)
-        
-        # Check the status of the response
+        response = requests.get(API_URL)
         if response.status_code == 200:
-            print("Data fetched successfully!")
-            
-            # Print a preview of the raw CSV text
-            print("Raw Data Preview:")
-            print(response.text[:500])  # Display the first 500 characters of the response
-            
-            # Load the data into a pandas DataFrame
             data = pd.read_csv(StringIO(response.text))
+            highlights = {
+                "Total States/UTs": data['States/UTs'].nunique(),
+                "Total Records": len(data),
+                "Time Period": f"{data.columns[1]} to {data.columns[-1]}"
+            }
+            return data, highlights
         else:
-            print(f"Failed to fetch data. HTTP Status Code: {response.status_code}")
+            raise ValueError(f"Error fetching data: {response.status_code}")
     except Exception as e:
-        gr.Markdownint("Oops, Error reading the data, please try after sometime...")
-    #data = pd.read_csv(file)
-    highlights = {
-        "Total States/UTs": data['States/UTs'].nunique(),
-        "Total Records": len(data),
-        "Time Period": f"{data.columns[1]} to {data.columns[-1]}"
-    }
-    return data, highlights
+        return None, {"error": str(e)}
 
-# Plot: Total accidents per year
+# Predefined analysis functions
 def plot_total_accidents(data):
     yearly_totals = data.drop('States/UTs', axis=1).sum()
     fig = px.line(
@@ -54,29 +41,22 @@ def plot_total_accidents(data):
     )
     return fig
 
-# Plot: Trends for top 5 states/UTs (scatter plot)
 def plot_top5_trends(data):
-    # Sort and filter top 5 states based on the 2016 accident data
     total_2016 = data[['States/UTs', '2016']].sort_values(by='2016', ascending=False)
     top_5_states = total_2016.head(5)['States/UTs'].values
     data_top_5 = data[data['States/UTs'].isin(top_5_states)]
-    
-    # Melt the data to prepare it for the scatter plot
     data_top_5_melted = data_top_5.melt(id_vars='States/UTs', var_name='Year', value_name='Accidents')
-    
-    # Plotting the scatter plot
     fig = px.scatter(
         data_top_5_melted,
         x='Year',
         y='Accidents',
         color='States/UTs',
         title="Accident Trends (2008-2016) for Top 5 States/UTs",
-        template="plotly_dark",  # You can change the template
-        range_y=[0, data_top_5_melted['Accidents'].max()*1.1]  # Sets Y-axis range to ensure better visibility of data
+        template="plotly_dark",
+        range_y=[0, data_top_5_melted['Accidents'].max() * 1.1]
     )
     return fig
 
-# Plot: Correlation heatmap
 def plot_correlation(data):
     correlation = data.drop('States/UTs', axis=1).corr()
     fig = go.Figure(data=go.Heatmap(
@@ -93,10 +73,11 @@ def plot_correlation(data):
     )
     return fig
 
-# Combine the analysis options
-def analysis( analysis_type):
+# Analysis selector
+def analysis(analysis_type):
     data, highlights = load_data()
-    
+    if "error" in highlights:
+        return f"Error: {highlights['error']}"
     if analysis_type == "Total Accidents per Year":
         return plot_total_accidents(data)
     elif analysis_type == "Top 5 States/UTs Trends":
@@ -104,47 +85,103 @@ def analysis( analysis_type):
     elif analysis_type == "Correlation Analysis":
         return plot_correlation(data)
 
-# Main interface for displaying highlights
-def main_interface():
-    data, highlights = load_data()
+# Custom plot builder
+def build_custom_plot(x_axis, y_axis, group_by):
+    data, _ = load_data()
 
-    # Simple key insights with no background color
-    insights = f"""
-        <div style="font-size: 18px; padding: 15px; line-height: 1.5; color: black; border-radius: 10px;">
-            <h4>📊 Key Insights:</h4>
-            <ul>
-                <li><b>Total States/UTs:</b> {highlights['Total States/UTs']}</li>
-                <li><b>Total Records:</b> {highlights['Total Records']}</li>
-                <li><b>Time Period:</b> {highlights['Time Period']}</li>
-            </ul>
-        </div>
-    """
-    return insights
+    # Handle "All States" or "All Years" scenarios
+    if x_axis == "All Years" and y_axis == "All States":
+        melted_data = data.melt(id_vars="States/UTs", var_name="Year", value_name="Accidents")
+        fig = px.bar(
+            melted_data,
+            x="Year",
+            y="Accidents",
+            color="States/UTs",
+            title="Accidents Over All States and Years",
+            template="plotly_dark"
+        )
+        return fig
 
-# Launch Gradio app
+    if x_axis == "All Years":
+        melted_data = data.melt(id_vars="States/UTs", var_name="Year", value_name="Accidents")
+        melted_data = melted_data[melted_data['States/UTs'] == y_axis]
+        fig = px.line(
+            melted_data,
+            x="Year",
+            y="Accidents",
+            title=f"Accidents for {y_axis} Over All Years",
+            template="plotly_dark"
+        )
+        return fig
+
+    if y_axis == "All States":
+        melted_data = data.melt(id_vars="States/UTs", var_name="Year", value_name="Accidents")
+        melted_data = melted_data[melted_data['Year'] == x_axis]
+        fig = px.bar(
+            melted_data,
+            x="States/UTs",
+            y="Accidents",
+            title=f"Accidents Across All States for {x_axis}",
+            template="plotly_dark"
+        )
+        return fig
+
+    # Default plot
+    fig = px.bar(
+        data,
+        x=x_axis,
+        y=y_axis,
+        color=group_by if group_by != "None" else None,
+        title=f"Custom Plot: {y_axis} vs {x_axis}",
+        template="plotly_dark"
+    )
+    return fig
+
+# Dropdown choices
+def get_column_choices():
+    data, _ = load_data()
+    columns = data.columns.tolist()
+    return ["All Years"] + columns[1:]  # Add "All Years" option
+
+def get_state_choices():
+    data, _ = load_data()
+    states = data["States/UTs"].unique().tolist()
+    return ["All States"] + states
+
+# Main Gradio interface
 with gr.Blocks(title="Accident Analysis App") as app:
     gr.Markdown("## 🚗 Welcome to the Accident Analysis App 🚦")
-    #gr.Markdown("Upload your CSV file to explore the data interactively.")
-    if response.status_code == 200:
-        gr.Markdown("Data is successfully fetched from API")
-    # File input and interactive analysis
-    
+    gr.Markdown("Analyze road accident data interactively using this app.")
 
-    #file_input = gr.File(label="Upload CSV File")
-    insights_output = gr.HTML()  # Display key insights
+    if requests.get(API_URL).status_code == 200:
+        gr.Markdown("Data successfully fetched from API!")
+
+    # Predefined plots
+    insights_output = gr.HTML()
     analysis_selector = gr.Radio(
         label="Choose Analysis Type:",
         choices=["Total Accidents per Year", "Top 5 States/UTs Trends", "Correlation Analysis"],
-        value="Total Accidents per Year"  # Default to the first option
+        value="Total Accidents per Year"
     )
     analysis_output = gr.Plot()
-    
-    # Bind actions
-    # file_input.change(main_interface, inputs=file_input, outputs=insights_output)
     analysis_selector.change(analysis, inputs=[analysis_selector], outputs=analysis_output)
 
-#app.launch()
-# app.launch(server_name="0.0.0.0", server_port=8080)
+    # Custom plot section
+    gr.Markdown("### Build Your Own Plot 🎨")
+    column_choices = get_column_choices()
+    state_choices = get_state_choices()
+
+    x_axis_input = gr.Dropdown(label="X-Axis", choices=column_choices, value="All Years")
+    y_axis_input = gr.Dropdown(label="Y-Axis", choices=state_choices, value="All States")
+    group_by_input = gr.Dropdown(label="Group By (Optional)", choices=["None"] + column_choices)
+    custom_plot_output = gr.Plot()
+
+    custom_plot_button = gr.Button("Generate Custom Plot")
+    custom_plot_button.click(
+        build_custom_plot,
+        inputs=[x_axis_input, y_axis_input, group_by_input],
+        outputs=custom_plot_output
+    )
 app.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
 
