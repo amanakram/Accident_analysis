@@ -7,15 +7,19 @@ The Vehicle Accident Data Analysis App is a user-friendly web application built 
 
 ## 🎯 Features  
 - **Fetch Accident Data**: Retrieve data directly from the API without the need for manual uploads.  
-- **Interactive Visualizations**:  
-  - Total accidents across all States/UTs by year.  
-  - Trends for the top 5 States/UTs with the highest accident numbers.  
-  - Correlation analysis between different years.  
-- **Data Highlights**: Automatically generated insights, such as:  
+- **Dynamic and Interactive Visualizations**:
+  - Analyze total accidents across all States/UTs by year.    
+  - Visualize trends for the top 5 States/UTs with the highest accident counts.  
+  - Perform correlation analysis to identify relationships between different years.
+    
+- **Comprehensive Data Highlights**: Automatically generated insights, such as:  
   - Total number of States/UTs.  
   - Number of records in the dataset.  
-  - Time period covered by the data.  
-
+  - Time period covered by the data.
+ 
+- **Custom Plot Builder:**:
+  - Generate your own visualizations by selecting any combination of States/UTs and years.    
+  - Choose between bar plots and scatter plots for deeper insights. 
 ---
 
 ## 🛠️ Tech Stack  
